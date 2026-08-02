@@ -13,6 +13,7 @@ chromadb
 
 # LangChain
 langchain
+langchain_classic
 langchain-core
 langchain-community
 langchain-huggingface
@@ -43,3 +44,7 @@ black
 
 # Progress Bars
 tqdm
+
+#load env
+load_dotenv
+huggingface_hub

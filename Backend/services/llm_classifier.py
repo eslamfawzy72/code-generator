@@ -1,7 +1,6 @@
 from enum import Enum
 
-from langchain_core.llms import OpenAI
-from langchain_core.prompts import PromptTemplate
+# from langchain_core.prompts import PromptTemplate
 from services.llm_service import LLMService
 
 class Intent(str, Enum):
@@ -48,7 +47,7 @@ Rules:
             system_prompt=self.SYSTEM_PROMPT,
             user_prompt=prompt,
             temperature=0,
-            max_tokens=10
+            max_tokens=128
         ).strip().upper()
         try:
             return Intent(response)
