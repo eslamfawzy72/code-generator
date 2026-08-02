@@ -1,0 +1,1 @@
+CLASSIFIER_MODEL = "Qwen/Qwen2.5-3B-Instruct"

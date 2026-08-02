@@ -1,0 +1,45 @@
+# LLM & Transformers
+transformers
+torch
+accelerate
+sentencepiece
+safetensors
+
+# Embeddings
+sentence-transformers
+
+# Vector Database
+chromadb
+
+# LangChain
+langchain
+langchain-core
+langchain-community
+langchain-huggingface
+langchain-chroma
+langchain-text-splitters
+
+# UI
+streamlit
+
+# Environment Variables
+python-dotenv
+
+# Validation
+pydantic
+
+# Tokenization
+tiktoken
+
+# File Processing
+pypdf
+
+# Utilities
+numpy
+pandas
+
+# Code Formatting (optional)
+black
+
+# Progress Bars
+tqdm
