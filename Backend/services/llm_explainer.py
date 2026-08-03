@@ -1,7 +1,12 @@
-from langchain_classic.prompts import PromptTemplate
+from functools import lru_cache
+import json
 
-from services.llm_classifier import LLMClassifier, Intent
+from schemas.explain_response import ExplainResponse
+
+from services.llm_classifier import LLMClassifier
 from services.llm_service import LLMService
+from dto.intents import Intent
+
 class LLMExplainer:
     SYSTEM_PROMPT = """
     You are an expert software engineer and programming tutor.
@@ -31,10 +36,38 @@ When explaining code:
 
 1. Give a short overview.
 2. Explain important functions or classes.
-3. If requested, explain the code line by line.
+3. explain the code line by line no omissions.
 4. Mention potential issues or improvements if they exist.
 5. Do not rewrite the entire implementation unless explicitly asked.  
-    
+
+Output Requirements:
+
+Return ONLY valid JSON.
+
+Do not use markdown.
+Do not use ```json.
+Do not include comments.
+Do not include explanations.
+
+Return exactly one JSON object.
+
+The JSON must follow exactly this schema:
+
+{
+  "summary": "Short overview of the code.",
+  "lines": [
+    {
+      "line_number": 1,
+      "line": "code here",
+      "explanation": "Explanation here"
+    }
+  ]
+}
+
+Rules:
+- Do not wrap the JSON in markdown.
+- Do not write any text before or after the JSON.
+- Return valid JSON only.    
     
     """
     def __init__(self, llm: LLMService):
@@ -42,32 +75,58 @@ When explaining code:
         
         
     def prompt_builder(self, user_prompt:str, conversation_history:str, source_code:str)->str:
-            template = PromptTemplate.from_template("""
+            return f"""
             User Request:
-            {user_request}
+            {user_prompt}
 
             Conversation History:
             {conversation_history}
 
             Source Code:
             {source_code}
-            """)
+            """
 
-            return template.format(
-                user_request=user_prompt,
-                conversation_history=conversation_history,
-                source_code=source_code
-            )
+       
         
      
-    def explain(self, user_prompt:str, conversation_history:str="", source_code:str="")->str:
+    def _parse_response(self, response: str) -> dict:
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            start = response.find("{")
+            end = response.rfind("}")
+            if start != -1 and end != -1 and start < end:
+                return json.loads(response[start : end + 1])
+            raise ValueError("LLM returned invalid JSON")
+
+    def explain(self, user_prompt:str, conversation_history:str="", source_code:str="")->ExplainResponse:
         prompt = self.prompt_builder(user_prompt=user_prompt,
                                      source_code=source_code,
                                      conversation_history=conversation_history)
-    
-        return self.llm.generate(
-            system_prompt=self.SYSTEM_PROMPT,
-            user_prompt=prompt,
-            temperature=0,
-            max_tokens=512
-        )
+
+        generation_options = {
+            "system_prompt": self.SYSTEM_PROMPT,
+            "user_prompt": prompt,
+            "temperature": 0,
+            "max_tokens": 1024,
+            "response_format": "json",
+        }
+
+        response = self.llm.generate(**generation_options)
+        try:
+            data = self._parse_response(response)
+        except ValueError:
+            retry_prompt = f"{prompt}\n\nReturn the response again as one complete JSON object."
+            retry_response = self.llm.generate(
+                **{
+                    **generation_options,
+                    "user_prompt": retry_prompt,
+                    "max_tokens": 1536,
+                }
+            )
+            data = self._parse_response(retry_response)
+        data["intent"] = Intent.EXPLAIN
+        return ExplainResponse.model_validate(data)
+    @lru_cache
+    def get_explainer_llm():
+        return LLMService("qwen2.5:3b")

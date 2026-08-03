@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from langchain.memory import ConversationBufferWindowMemory
 
 
@@ -23,3 +25,6 @@ class MemoryService:
 
     def get_language_preference(self):
         return self.language_preference
+    @lru_cache
+    def get_memory_service():
+        return MemoryService()

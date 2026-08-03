@@ -1,11 +1,10 @@
 from enum import Enum
+from functools import lru_cache
 
 # from langchain_core.prompts import PromptTemplate
 from services.llm_service import LLMService
+from dto.intents import Intent
 
-class Intent(str, Enum):
-    EXPLAIN = "EXPLAIN"
-    GENERATE = "GENERATE"
 
 
 class LLMClassifier:
@@ -53,4 +52,8 @@ Rules:
             return Intent(response)
         except ValueError:
             raise ValueError(f"Invalid intent: {response}")
+    @lru_cache
+    def get_classifier_llm():
+        return LLMService("qwen2.5:3b")
+
         
