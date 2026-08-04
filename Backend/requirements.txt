@@ -38,6 +38,7 @@ pypdf
 # Utilities
 numpy
 pandas
+ollama
 
 # Code Formatting (optional)
 black
