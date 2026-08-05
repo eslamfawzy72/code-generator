@@ -2,8 +2,13 @@ from functools import lru_cache
 
 from langchain_core.documents import Document
 
+from schemas.retrieval_schema import RetrievalResponse
 from clients.chroma_client import get_chroma_client
 from services.embedding_service import get_embedding_service
+from schemas.retrieval_schema import (
+    RetrievalResponse,
+    RetrievedDocument,
+)
 
 
 class RetrievalService:
@@ -16,7 +21,7 @@ class RetrievalService:
         self,
         query: str,
         k: int = 3,
-    ) -> list[Document]:
+    ) -> RetrievalResponse:
         """
         Retrieve the top-k most relevant documents from Chroma.
         """
@@ -40,13 +45,13 @@ class RetrievalService:
             retrieved_metadata,
         ):
             documents.append(
-                Document(
-                    page_content=content,
+                RetrievedDocument(
+                    content=content,
                     metadata=metadata,
                 )
             )
 
-        return documents
+        return RetrievalResponse(documents=documents)
 
 
 @lru_cache

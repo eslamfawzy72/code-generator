@@ -4,7 +4,7 @@ from functools import lru_cache
 
 class LLMService:
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str = "qwen2.5:3b"):
         self.model_name = model_name
 
     def generate(
