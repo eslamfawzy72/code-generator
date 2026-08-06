@@ -1,10 +1,18 @@
 from services.learning_service import get_learning_service
 from services.retrieval_service import get_retrieval_service
 from services.relevance_checker_service import get_relevance_checker_service
+from services.llm_code_generator import LLMCodeGenerator
+from services.llm_service import LLMService
+from services.prompt_builder import get_prompt_builder_service
 
 retriever = get_retrieval_service()
 relevance_checker = get_relevance_checker_service()
 learning_service = get_learning_service()
+
+code_generator = LLMCodeGenerator(
+    llm=LLMService.get_llm_service(),
+    prompt_builder=get_prompt_builder_service(),
+)
 
 query = input("Enter your programming problem:\n> ")
 
@@ -36,15 +44,33 @@ for result in relevance_response.results:
     print(f"Reason   : {result.reason}")
     print("-" * 60)
 
-# -----------------------------
-# Learning path
-# -----------------------------
-flag=False
-for i in range(len(relevance_response.results)):
-    if relevance_response.results[i].relevant==True:
-        flag=True
-        break
-if not flag:
+# ==========================================================
+# Code Generation Path
+# ==========================================================
+if relevance_response.has_relevant_documents:
+
+    print("\nGenerating code...\n")
+
+    relevant_documents = [
+        retrieval_response.documents[result.document_index]
+        for result in relevance_response.results
+        if result.relevant
+    ]
+
+    generated_code = code_generator.generate_code(
+        user_prompt=query,
+        relevant_documents=relevant_documents,
+    )
+
+    print("=" * 60)
+    print("Generated Code")
+    print("=" * 60)
+    print(generated_code)
+
+# ==========================================================
+# Learning Path
+# ==========================================================
+else:
 
     print("\nNo relevant documents were found.")
     print("Please provide the path to a Python file containing the correct solution.")
@@ -68,6 +94,3 @@ if not flag:
 
     except Exception as e:
         print(f"\n❌ Failed to store solution: {e}")
-
-else:
-    print("\nProceed to the code generation pipeline.")
