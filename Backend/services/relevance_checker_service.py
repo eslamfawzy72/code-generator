@@ -25,7 +25,7 @@ class RelevanceCheckerService:
     Schema:
 
     {
-        "has_relevant_documents": true,
+        
         "results": [
             {
                 "document_index": 0,
@@ -94,10 +94,13 @@ class RelevanceCheckerService:
         }
 
         response = self.llm_service.generate(**generation_options)
-
         data = self._parse_response(response)
-
-        return RelevanceResponse.model_validate(data)
+        relevance_response = RelevanceResponse.model_validate(data)
+        relevance_response.has_relevant_documents = any(
+        result.relevant
+        for result in relevance_response.results
+        )
+        return relevance_response
     
 @lru_cache
 def get_relevance_checker_service():

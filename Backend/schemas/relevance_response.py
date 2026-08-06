@@ -8,5 +8,5 @@ class RelevanceResult(BaseModel):
 
 
 class RelevanceResponse(BaseModel):
-    has_relevant_documents: bool
+    has_relevant_documents: bool = False
     results: list[RelevanceResult]
