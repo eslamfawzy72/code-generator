@@ -31,7 +31,7 @@ relevance_response = relevance_checker.check(
 
 print("\nRelevance Result:\n")
 
-
+print(f"Has Relevant Documents: {relevance_response.has_relevant_documents}")
 for result in relevance_response.results:
     print(f"Document {result.document_index}")
     print(f"Relevant : {result.relevant}")
