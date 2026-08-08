@@ -1,4 +1,3 @@
-from pydantic import BaseModel
 
 from schemas.response_schema import BaseResponse
 from schemas.line_explaination import LineExplanation

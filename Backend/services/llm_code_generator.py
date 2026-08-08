@@ -1,6 +1,7 @@
 from services.llm_service import LLMService
 from services.prompt_builder import PromptBuilderService
 from schemas.retrieval_schema import RetrievedDocument
+from schemas.generation_response import CodeGenerationResponse
 
 class LLMCodeGenerator:
     def __init__(self, llm: LLMService, prompt_builder: PromptBuilderService):
@@ -22,7 +23,7 @@ Rules:
 - Do not use Markdown.
 - Ensure the code is executable.
 """
-    def generate_code(self, user_prompt: str, relevant_documents: list[RetrievedDocument]) -> str:
+    def generate_code(self, user_prompt: str, relevant_documents: list[RetrievedDocument]) -> CodeGenerationResponse:
         prompt = self.prompt_builder.build_generation_prompt(
             user_prompt=user_prompt,
             relevant_documents=relevant_documents,
@@ -34,5 +35,8 @@ Rules:
             temperature=0.7,
             max_tokens=1024,
         )
-        return response.strip()
-    
+        return CodeGenerationResponse(
+            language="python",
+            code=response.strip(),
+        )
+            

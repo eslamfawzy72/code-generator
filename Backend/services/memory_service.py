@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from langchain.memory import ConversationBufferWindowMemory
+from langchain_classic.memory import ConversationBufferWindowMemory
 
 
 class MemoryService:
