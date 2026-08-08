@@ -65,7 +65,7 @@ if relevance_response.has_relevant_documents:
     print("=" * 60)
     print("Generated Code")
     print("=" * 60)
-    print(generated_code)
+    print(generated_code.code)
 
 # ==========================================================
 # Learning Path
