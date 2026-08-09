@@ -18,8 +18,16 @@ class MemoryService:
     def add_ai_message(self, message: str):
         self.memory.chat_memory.add_ai_message(message)
 
-    def get_history(self):
-        return self.memory.load_memory_variables({})["history"]
+    def get_history(self) -> str:
+        history = self.memory.load_memory_variables({})["history"]
+
+        formatted = []
+
+        for message in history:
+            role = "User" if message.type == "human" else "Assistant"
+            formatted.append(f"{role}: {message.content}")
+
+        return "\n".join(formatted)
     def set_language_preference(self, language: str):
         self.language_preference = language
 

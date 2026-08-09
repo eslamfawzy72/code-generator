@@ -7,7 +7,3 @@ class OrchestratorRequest(BaseModel):
         description="The user's request."
     )
 
-    source_code: str | None = Field(
-        default=None,
-        description="Optional source code used for explanation or other code-related tasks."
-    )

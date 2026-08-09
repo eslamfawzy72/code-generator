@@ -1,5 +1,6 @@
 from functools import lru_cache
 import json
+from langchain_core.messages import BaseMessage
 
 from schemas.explain_response import ExplainResponse
 
@@ -99,7 +100,7 @@ Rules:
                 return json.loads(response[start : end + 1])
             raise ValueError("LLM returned invalid JSON")
 
-    def explain(self, user_prompt:str, conversation_history:str="", source_code:str="")->ExplainResponse:
+    def explain(self, user_prompt:str, conversation_history:list[BaseMessage], source_code:str="")->ExplainResponse:
         prompt = self.prompt_builder(user_prompt=user_prompt,
                                      source_code=source_code,
                                      conversation_history=conversation_history)

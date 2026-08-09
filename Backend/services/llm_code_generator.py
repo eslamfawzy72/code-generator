@@ -1,12 +1,16 @@
 from services.llm_service import LLMService
 from services.prompt_builder import PromptBuilderService
-from schemas.retrieval_schema import RetrievedDocument
+from schemas.retrieval_schema import RetrievedDocument 
 from schemas.generation_response import CodeGenerationResponse
+from services.memory_service import MemoryService
+from langchain_core.messages import BaseMessage
+
 
 class LLMCodeGenerator:
-    def __init__(self, llm: LLMService, prompt_builder: PromptBuilderService):
+    def __init__(self, llm: LLMService, prompt_builder: PromptBuilderService,memory: MemoryService):
         self.llm = llm
         self.prompt_builder = prompt_builder
+        self.memory = memory
     SYSTEM_PROMPT = """
 You are an expert Python software engineer.
 
@@ -23,10 +27,11 @@ Rules:
 - Do not use Markdown.
 - Ensure the code is executable.
 """
-    def generate_code(self, user_prompt: str, relevant_documents: list[RetrievedDocument]) -> CodeGenerationResponse:
+    def generate_code(self, user_prompt: str, relevant_documents: list[RetrievedDocument], conversation_history: list[BaseMessage]) -> CodeGenerationResponse:
         prompt = self.prompt_builder.build_generation_prompt(
             user_prompt=user_prompt,
             relevant_documents=relevant_documents,
+            conversation_history=conversation_history
         )
 
         response = self.llm.generate(

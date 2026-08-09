@@ -17,5 +17,4 @@ async def handle_request(
 ):
     return orchestrator.handle_request(
         user_prompt=request.user_prompt,
-        source_code=request.source_code,
     )

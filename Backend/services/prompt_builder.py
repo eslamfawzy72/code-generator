@@ -9,6 +9,7 @@ class PromptBuilderService:
         self,
         user_prompt: str,
         relevant_documents: list[RetrievedDocument],
+        conversation_history: list[str]
     ) -> str:
 
         context = []
@@ -28,12 +29,23 @@ class PromptBuilderService:
         context_text = "\n".join(context)
 
         return f"""
-    User Request:
-    {user_prompt}
+        ========================
+        Conversation History
+        ========================
+        {conversation_history}
 
-    Retrieved Examples:
-    {context_text}
-    """
+        ========================
+        Current User Request
+        ========================
+        {user_prompt}
+
+        ========================
+        Retrieved Programming Examples
+        ========================
+        {context_text}
+
+        Generate the best solution using the conversation history when the request is a follow-up. Use the retrieved examples only as references.
+        """
 
 @lru_cache
 def get_prompt_builder_service():

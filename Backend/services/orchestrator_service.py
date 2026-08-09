@@ -11,9 +11,7 @@ from services.llm_code_generator import LLMCodeGenerator
 from dto.intents import Intent
 from schemas.response_schema import BaseResponse
 from services.code_execution_service import ExecutionService
-from schemas.generation_response import CodeGenerationResponse
-from schemas.explain_response import ExplainResponse
-from schemas.execution_response import ExecutionResponse
+from services.llm_code_extraction_service import LLMCodeExtractor
 from schemas.generate_path_response import GenerateResponse
 from services.relevance_checker_service import RelevanceCheckerService
 from services.retrieval_service import RetrievalService
@@ -23,7 +21,8 @@ class OrchestratorService:
                  execution_service: ExecutionService,
                  code_generator: LLMCodeGenerator,
                  relevence_service: RelevanceCheckerService,
-                 retrieval_service: RetrievalService
+                 retrieval_service: RetrievalService,
+                 extraction_service: LLMCodeExtractor
                  ):
         self.classifier = classifier
         self.explainer = explainer
@@ -32,14 +31,16 @@ class OrchestratorService:
         self.code_generator = code_generator
         self.relevance_service = relevence_service
         self.retrieval_service = retrieval_service
-
+        self.extractor_service = extraction_service
+        
     def _classify_intent(self, user_prompt: str) -> str:
         intent = self.classifier.classify(user_prompt)
         return intent.value
     
-    def handle_request(self, user_prompt: str, source_code: str) -> BaseResponse:
+    def handle_request(self, user_prompt: str) -> BaseResponse:
         intent = self._classify_intent(user_prompt)
         if intent == Intent.EXPLAIN.value:
+            extraction= self.extractor_service.extract(user_message=user_prompt)
             
             self.memory_service.add_user_message(user_prompt)
             history = self.memory_service.get_history()
@@ -47,11 +48,14 @@ class OrchestratorService:
             response = self.explainer.explain(
                 user_prompt=user_prompt,
                 conversation_history=history,
-                source_code=source_code,
+                source_code=extraction.source_code,
             )
             self.memory_service.add_ai_message(response.summary)
             return response
         if intent == Intent.GENERATE.value:
+            self.memory_service.add_user_message(user_prompt)
+
+            history = self.memory_service.get_history()
             retrieval_response = self.retrieval_service.retrieve(user_prompt)
 
             relevance_response = self.relevance_service.check(
@@ -68,6 +72,7 @@ class OrchestratorService:
             generation = self.code_generator.generate_code(
                 user_prompt=user_prompt,
                 relevant_documents=relevant_documents,
+                conversation_history=history
             )
 
             execution = self.execution_service.execute(generation)
@@ -88,11 +93,13 @@ class OrchestratorService:
         generator_llm = LLMService("qwen2.5:3b")
         relevance_llm = LLMService("qwen2.5:3b")
         prompt_builder = PromptBuilderService()
-        code_generator = LLMCodeGenerator(generator_llm, prompt_builder)
+        code_generator = LLMCodeGenerator(generator_llm, prompt_builder, memory_service)
         classifier = LLMClassifier(classifier_llm)
         explainer = LLMExplainer(explainer_llm)
         relevance_service = RelevanceCheckerService(relevance_llm)
         retrieval_service = RetrievalService()
+        extraction_llm = LLMService("qwen2.5:3b")
+        extraction_service = LLMCodeExtractor(extraction_llm)
         
         return OrchestratorService(
             classifier=classifier,
@@ -101,6 +108,7 @@ class OrchestratorService:
             execution_service=execution_service,
             code_generator=code_generator,
             relevence_service=relevance_service,
-            retrieval_service=retrieval_service
+            retrieval_service=retrieval_service,
+            extraction_service=extraction_service
         )
     
