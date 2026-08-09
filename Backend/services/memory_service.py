@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from langchain_classic.memory import ConversationBufferWindowMemory
+from langchain_core.messages import BaseMessage
 
 
 class MemoryService:
@@ -10,6 +11,7 @@ class MemoryService:
             k=5,
             return_messages=True
         )
+        self.current_source_code = ""
         self.preference_language = preference_language
 
     def add_user_message(self, message: str):
@@ -18,16 +20,14 @@ class MemoryService:
     def add_ai_message(self, message: str):
         self.memory.chat_memory.add_ai_message(message)
 
-    def get_history(self) -> str:
-        history = self.memory.load_memory_variables({})["history"]
 
-        formatted = []
-
-        for message in history:
-            role = "User" if message.type == "human" else "Assistant"
-            formatted.append(f"{role}: {message.content}")
-
-        return "\n".join(formatted)
+    def get_history(self) -> list[BaseMessage]:
+        return self.memory.load_memory_variables({})["history"]
+    
+    def set_current_source_code(self, code: str):
+         self.current_source_code = code
+    def get_current_source_code(self) -> str:
+        return self.current_source_code
     def set_language_preference(self, language: str):
         self.language_preference = language
 

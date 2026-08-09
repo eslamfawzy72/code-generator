@@ -7,12 +7,12 @@ BACKEND_URL = "http://127.0.0.1:8004/api/v1/orchestrator"
 st.set_page_config(
     page_title="AI Code Assistant",
     page_icon="🤖",
-    layout="wide"
+    layout="wide",
 )
 
-# ----------------------------
+# ============================================================
 # Session State
-# ----------------------------
+# ============================================================
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -20,59 +20,60 @@ if "messages" not in st.session_state:
 if "memory" not in st.session_state:
     st.session_state.memory = []
 
-# ----------------------------
+# ============================================================
 # Sidebar
-# ----------------------------
+# ============================================================
 
 with st.sidebar:
 
     st.title("🤖 AI Code Assistant")
 
-    uploaded_file = st.file_uploader(
-        "Upload Python File (Optional)",
-        type=["py"]
-    )
-
-    source_code = ""
-
-    if uploaded_file is not None:
-        source_code = uploaded_file.read().decode("utf-8")
-
-    st.divider()
-
-    st.subheader("Conversation Memory")
+    st.markdown("### Conversation Memory")
 
     if st.session_state.memory:
 
-        for item in st.session_state.memory[-5:]:
+        for idx, item in enumerate(reversed(st.session_state.memory[-10:]), 1):
 
-            with st.expander(item["role"].capitalize()):
-                st.write(item["content"])
+            preview = item["content"].replace("\n", " ")
+
+            if len(preview) > 60:
+                preview = preview[:60] + "..."
+
+            icon = "👤" if item["role"] == "user" else "🤖"
+
+            st.markdown(
+                f"""
+**{icon} {item["role"].capitalize()}**
+
+{preview}
+
+---
+"""
+            )
 
     else:
         st.caption("No conversation yet.")
 
     st.divider()
 
-    if st.button("Clear Chat"):
-
+    if st.button("🗑 Clear Chat", use_container_width=True):
         st.session_state.messages.clear()
         st.session_state.memory.clear()
         st.rerun()
 
-# ----------------------------
-# Title
-# ----------------------------
+# ============================================================
+# Header
+# ============================================================
 
 st.title("💻 AI Code Assistant")
 
 st.caption(
-    "Explain code or generate Python solutions."
+    "Generate Python code, explain source code, and execute generated solutions."
 )
 
-# ----------------------------
-# Display Chat History
-# ----------------------------
+# ============================================================
+# Render Previous Messages
+# ============================================================
 
 for msg in st.session_state.messages:
 
@@ -82,94 +83,119 @@ for msg in st.session_state.messages:
 
             st.markdown(msg["content"])
 
+        elif msg["type"] == "explanation":
+
+            st.markdown(f"### 📌 Summary")
+
+            st.info(msg["content"]["summary"])
+
+            if msg["content"]["lines"]:
+
+                st.markdown("### 📖 Line by Line Explanation")
+
+                for line in msg["content"]["lines"]:
+
+                    cols = st.columns([1, 3])
+
+                    with cols[0]:
+                        st.markdown(
+                            f"**Line {line['line_number']}**"
+                        )
+
+                    with cols[1]:
+                        st.code(
+                            line["line"],
+                            language="python",
+                        )
+
+                        st.caption(line["explanation"])
+
         elif msg["type"] == "code":
 
-            st.code(msg["content"], language="python")
+            st.markdown("### Generated Code")
+
+            st.code(
+                msg["content"],
+                language="python",
+            )
 
         elif msg["type"] == "execution":
 
-            st.success(
-                "Execution Successful"
-                if msg["content"]["success"]
-                else "Execution Failed"
+            execution = msg["content"]
+
+            if execution["success"]:
+                st.success("✅ Execution Successful")
+            else:
+                st.error("❌ Execution Failed")
+
+            col1, col2 = st.columns(2)
+
+            col1.metric(
+                "Execution Time",
+                f"{execution['execution_time']:.3f}s",
             )
 
-            st.write(
-                f"Execution Time: "
-                f"{msg['content']['execution_time']:.3f}s"
+            col2.metric(
+                "Exit Code",
+                execution["exit_code"],
             )
 
-            st.write(
-                f"Exit Code: "
-                f"{msg['content']['exit_code']}"
-            )
+            if execution["stdout"]:
 
-            if msg["content"]["stdout"]:
-                st.subheader("stdout")
-                st.code(msg["content"]["stdout"])
+                st.markdown("#### stdout")
 
-            if msg["content"]["stderr"]:
-                st.subheader("stderr")
-                st.code(msg["content"]["stderr"])
-        elif msg["type"] == "explanation":
+                st.code(
+                    execution["stdout"],
+                    language="text",
+                )
 
-            st.markdown(msg["content"]["summary"])
+            if execution["stderr"]:
 
-            if msg["content"].get("lines"):
+                st.markdown("#### stderr")
 
-                st.markdown("---")
-                st.subheader("📖 Line by Line Explanation")
+                st.code(
+                    execution["stderr"],
+                    language="text",
+                )
 
-                for item in msg["content"]["lines"]:
-
-                    with st.expander(f"Line {item['line_number']}"):
-
-                        st.code(
-                            item["line"],
-                            language="python"
-                        )
-
-                        st.write(
-                            item["explanation"]
-                        )
-
-# ----------------------------
+# ============================================================
 # Chat Input
-# ----------------------------
+# ============================================================
 
-prompt = st.chat_input("Ask anything...")
+prompt = st.chat_input("Ask something...")
 
 if prompt:
+
+    # ---------------- USER ----------------
 
     st.session_state.messages.append(
         {
             "role": "user",
             "type": "text",
-            "content": prompt
+            "content": prompt,
         }
     )
 
     st.session_state.memory.append(
         {
             "role": "user",
-            "content": prompt
+            "content": prompt,
         }
     )
 
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    payload = {
-        "user_prompt": prompt,
-        "source_code": source_code
-    }
+    # ---------------- REQUEST ----------------
 
     try:
 
         response = requests.post(
             BACKEND_URL,
-            json=payload,
-            timeout=120
+            json={
+                "user_prompt": prompt,
+            },
+            timeout=120,
         )
 
         response.raise_for_status()
@@ -183,44 +209,56 @@ if prompt:
 
         st.stop()
 
- # ----------------------------------------
-# Explain Path
-# ----------------------------------------
+    # ========================================================
+    # Explain Path
+    # ========================================================
 
     if "generation" not in result:
 
-        summary = result.get("summary", "")
+        summary = result["summary"]
         lines = result.get("lines", [])
 
         with st.chat_message("assistant"):
 
-            # Stream the summary
             placeholder = st.empty()
+
             streamed = ""
 
             for ch in summary:
+
                 streamed += ch
+
                 placeholder.markdown(streamed)
+
                 time.sleep(0.003)
 
-            # Show line-by-line explanation
             if lines:
-                st.markdown("---")
-                st.subheader("📖 Line by Line Explanation")
 
-                for item in lines:
-                    with st.expander(f"Line {item['line_number']}"):
+                st.markdown("---")
+
+                st.markdown("## 📖 Line by Line Explanation")
+
+                for line in lines:
+
+                    cols = st.columns([1, 3])
+
+                    with cols[0]:
+
+                        st.markdown(
+                            f"**Line {line['line_number']}**"
+                        )
+
+                    with cols[1]:
 
                         st.code(
-                            item["line"],
-                            language="python"
+                            line["line"],
+                            language="python",
                         )
 
-                        st.write(
-                            item["explanation"]
+                        st.caption(
+                            line["explanation"]
                         )
 
-        # Save the whole response to chat history
         st.session_state.messages.append(
             {
                 "role": "assistant",
@@ -235,9 +273,10 @@ if prompt:
                 "content": summary,
             }
         )
-        # ----------------------------------------
-        # Generate Path
-        # ----------------------------------------
+
+    # ========================================================
+    # Generate Path
+    # ========================================================
 
     else:
 
@@ -246,22 +285,21 @@ if prompt:
 
         with st.chat_message("assistant"):
 
-            st.subheader("Generated Code")
+            st.markdown("## 💻 Generated Code")
 
             st.code(
                 generation["code"],
-                language="python"
+                language="python",
             )
 
             if generation.get("explanation"):
 
-                st.info(
-                    generation["explanation"]
-                )
+                st.info(generation["explanation"])
 
             if st.button(
                 "▶ Execute Code",
-                key=f"execute_{len(st.session_state.messages)}"
+                use_container_width=True,
+                key=f"run_{len(st.session_state.messages)}",
             ):
 
                 if execution["success"]:
@@ -269,36 +307,41 @@ if prompt:
                 else:
                     st.error("Execution Failed")
 
-                st.write(
-                    f"Execution Time: "
-                    f"{execution['execution_time']:.3f}s"
+                col1, col2 = st.columns(2)
+
+                col1.metric(
+                    "Execution Time",
+                    f"{execution['execution_time']:.3f}s",
                 )
 
-                st.write(
-                    f"Exit Code: "
-                    f"{execution['exit_code']}"
+                col2.metric(
+                    "Exit Code",
+                    execution["exit_code"],
                 )
 
                 if execution["stdout"]:
-                    st.subheader("stdout")
-                    st.code(execution["stdout"])
+
+                    st.markdown("#### stdout")
+
+                    st.code(
+                        execution["stdout"],
+                        language="text",
+                    )
 
                 if execution["stderr"]:
-                    st.subheader("stderr")
-                    st.code(execution["stderr"])
+
+                    st.markdown("#### stderr")
+
+                    st.code(
+                        execution["stderr"],
+                        language="text",
+                    )
 
         st.session_state.messages.append(
             {
                 "role": "assistant",
                 "type": "code",
-                "content": generation["code"]
-            }
-        )
-
-        st.session_state.memory.append(
-            {
-                "role": "assistant",
-                "content": generation["code"]
+                "content": generation["code"],
             }
         )
 
@@ -306,6 +349,13 @@ if prompt:
             {
                 "role": "assistant",
                 "type": "execution",
-                "content": execution
+                "content": execution,
+            }
+        )
+
+        st.session_state.memory.append(
+            {
+                "role": "assistant",
+                "content": generation["code"],
             }
         )

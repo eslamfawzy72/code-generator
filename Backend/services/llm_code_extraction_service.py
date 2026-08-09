@@ -38,7 +38,8 @@ Schema:
 
 {
     "user_prompt": "...",
-    "source_code": "..."
+    "source_code": "...",
+    "code_found": true/false
 }
 """
 

@@ -69,25 +69,67 @@ Rules:
 - Do not wrap the JSON in markdown.
 - Do not write any text before or after the JSON.
 - Return valid JSON only.    
+
+When the user asks a follow-up question such as:
+
+- Why?
+- What happens here?
+- Explain line 3.
+- Why does it print 5?
+- What is the time complexity?
+- Can you explain this part?
+
+you MUST assume they are referring to the previously provided Source Code.
+
+Do NOT answer the follow-up in isolation.
+
+Always answer with respect to the current Source Code.
     
     """
     def __init__(self, llm: LLMService):
         self.llm = llm
         
+            
+    def prompt_builder(
+        self,
+        user_prompt: str,
+        conversation_history: list,
+        source_code: str,
+    ):
+        history_text = ""
+
+        for msg in conversation_history:
+            role = "User" if msg.type == "human" else "Assistant"
+            history_text += f"{role}: {msg.content}\n"
+            
+
+        return f"""
+    You are continuing an ongoing conversation.
+
+    The source code below is the code currently being discussed.
+    Unless the user explicitly provides new code, ALWAYS assume follow-up
+    questions refer to this same source code.
+
+    =========================
+    Source Code
+    =========================
+
+    {source_code}
+
+    =========================
+    Previous Conversation
+    =========================
+
+    {history_text}
+
+    =========================
+    Current User Question
+    =========================
+
+    {user_prompt}
+    """
+
         
-    def prompt_builder(self, user_prompt:str, conversation_history:str, source_code:str)->str:
-            return f"""
-            User Request:
-            {user_prompt}
-
-            Conversation History:
-            {conversation_history}
-
-            Source Code:
-            {source_code}
-            """
-
-       
         
      
     def _parse_response(self, response: str) -> dict:

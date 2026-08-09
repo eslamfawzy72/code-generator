@@ -1,3 +1,6 @@
+import re
+
+
 from services.llm_service import LLMService
 from services.prompt_builder import PromptBuilderService
 from schemas.retrieval_schema import RetrievedDocument 
@@ -27,6 +30,18 @@ Rules:
 - Do not use Markdown.
 - Ensure the code is executable.
 """
+    @staticmethod
+    def _clean_code(code: str) -> str:
+                code = code.strip()
+
+                # Remove opening fence
+                code = re.sub(r"^```[a-zA-Z0-9]*\n?", "", code)
+
+                # Remove closing fence
+                code = re.sub(r"\n?```$", "", code)
+
+                return code.strip()
+                    
     def generate_code(self, user_prompt: str, relevant_documents: list[RetrievedDocument], conversation_history: list[BaseMessage]) -> CodeGenerationResponse:
         prompt = self.prompt_builder.build_generation_prompt(
             user_prompt=user_prompt,
@@ -42,6 +57,6 @@ Rules:
         )
         return CodeGenerationResponse(
             language="python",
-            code=response.strip(),
+            code=self._clean_code(response),
         )
-            
+   
