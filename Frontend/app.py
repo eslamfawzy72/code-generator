@@ -3,6 +3,7 @@ import requests
 import streamlit as st
 
 BACKEND_URL = "http://127.0.0.1:8004/api/v1/orchestrator"
+LEARN_URL = "http://127.0.0.1:8004/api/v1/learn"
 
 st.set_page_config(
     page_title="AI Code Assistant",
@@ -20,6 +21,15 @@ if "messages" not in st.session_state:
 if "memory" not in st.session_state:
     st.session_state.memory = []
 
+if "learning_required" not in st.session_state:
+    st.session_state.learning_required = False
+
+if "learning_problem" not in st.session_state:
+    st.session_state.learning_problem = ""
+
+if "learning_message" not in st.session_state:
+    st.session_state.learning_message = ""
+
 # ============================================================
 # Sidebar
 # ============================================================
@@ -28,37 +38,31 @@ with st.sidebar:
 
     st.title("🤖 AI Code Assistant")
 
-    st.markdown("### Conversation Memory")
+    st.subheader("🧠 Recent Conversation")
 
-    if st.session_state.memory:
+if not st.session_state.memory:
+    st.info("Start chatting to build conversation memory.")
+else:
+    for item in st.session_state.memory[-8:]:
 
-        for idx, item in enumerate(reversed(st.session_state.memory[-10:]), 1):
+        preview = item["content"].replace("\n", " ")
 
-            preview = item["content"].replace("\n", " ")
+        if len(preview) > 55:
+            preview = preview[:55] + "..."
 
-            if len(preview) > 60:
-                preview = preview[:60] + "..."
+        icon = "👤" if item["role"] == "user" else "🤖"
 
-            icon = "👤" if item["role"] == "user" else "🤖"
-
-            st.markdown(
-                f"""
-**{icon} {item["role"].capitalize()}**
-
-{preview}
-
----
-"""
-            )
-
-    else:
-        st.caption("No conversation yet.")
+        with st.container(border=True):
+            st.markdown(f"**{icon} {preview}**")
 
     st.divider()
 
     if st.button("🗑 Clear Chat", use_container_width=True):
         st.session_state.messages.clear()
         st.session_state.memory.clear()
+        st.session_state.learning_required = False
+        st.session_state.learning_problem = ""
+        st.session_state.learning_message = ""
         st.rerun()
 
 # ============================================================
@@ -159,6 +163,59 @@ for msg in st.session_state.messages:
                 )
 
 # ============================================================
+# Learning Mode Panel
+# ============================================================
+
+if st.session_state.learning_required:
+
+    with st.chat_message("assistant"):
+
+        st.warning(st.session_state.learning_message)
+
+        with st.form("learning_upload_form", clear_on_submit=False):
+
+            uploaded_file = st.file_uploader(
+                "Upload the correct Python solution",
+                type=["py"],
+                accept_multiple_files=False,
+            )
+
+            submitted = st.form_submit_button("Learn")
+
+            if submitted:
+
+                if uploaded_file is None:
+                    st.error("Please upload a .py file before learning.")
+                else:
+                    try:
+                        response = requests.post(
+                            LEARN_URL,
+                            data={"problem": st.session_state.learning_problem},
+                            files={
+                                "file": (
+                                    uploaded_file.name,
+                                    uploaded_file.getvalue(),
+                                    uploaded_file.type or "text/x-python",
+                                )
+                            },
+                            timeout=120,
+                        )
+                        response.raise_for_status()
+
+                        result = response.json()
+
+                        st.success(result.get("message", "Knowledge stored successfully."))
+
+                        st.session_state.learning_required = False
+                        st.session_state.learning_problem = ""
+                        st.session_state.learning_message = ""
+
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(str(e))
+
+# ============================================================
 # Chat Input
 # ============================================================
 
@@ -213,7 +270,36 @@ if prompt:
     # Explain Path
     # ========================================================
 
-    if "generation" not in result:
+    if result.get("needs_learning"):
+
+        learning_message = result["message"]
+
+        with st.chat_message("assistant"):
+            st.warning(learning_message)
+
+        # Set learning state and immediately rerun so the upload form
+        # appears in the same interaction instead of after another message.
+        st.session_state.learning_required = True
+        st.session_state.learning_problem = prompt
+        st.session_state.learning_message = learning_message
+        st.rerun()
+
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "type": "text",
+                "content": learning_message,
+            }
+        )
+
+        st.session_state.memory.append(
+            {
+                "role": "assistant",
+                "content": learning_message,
+            }
+        )
+
+    elif "generation" not in result:
 
         summary = result["summary"]
         lines = result.get("lines", [])

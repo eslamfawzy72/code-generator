@@ -1,11 +1,8 @@
 from functools import lru_cache
-from fastapi import HTTPException
-from services import retrieval_service
 from services.llm_service import LLMService
-from services.llm_classifier import Intent, LLMClassifier
+from services.llm_classifier import LLMClassifier
 from services.llm_explainer import LLMExplainer
 from services.memory_service import MemoryService
-from services.code_execution_service import ExecutionService
 from services.prompt_builder import PromptBuilderService
 from services.llm_code_generator import LLMCodeGenerator
 from dto.intents import Intent
@@ -13,8 +10,10 @@ from schemas.response_schema import BaseResponse
 from services.code_execution_service import ExecutionService
 from services.llm_code_extraction_service import LLMCodeExtractor
 from schemas.generate_path_response import GenerateResponse
+from schemas.learning_required_response import LearningRequiredResponse
 from services.relevance_checker_service import RelevanceCheckerService
 from services.retrieval_service import RetrievalService
+from services.learning_service import LearningService
 
 class OrchestratorService:
     def __init__(self, classifier: LLMClassifier, explainer: LLMExplainer, memory_service: MemoryService,
@@ -22,7 +21,8 @@ class OrchestratorService:
                  code_generator: LLMCodeGenerator,
                  relevence_service: RelevanceCheckerService,
                  retrieval_service: RetrievalService,
-                 extraction_service: LLMCodeExtractor
+                 extraction_service: LLMCodeExtractor,
+                 learning_service: LearningService,
                  ):
         self.classifier = classifier
         self.explainer = explainer
@@ -32,6 +32,7 @@ class OrchestratorService:
         self.relevance_service = relevence_service
         self.retrieval_service = retrieval_service
         self.extractor_service = extraction_service
+        self.learning_service = learning_service
         
     def _classify_intent(self, user_prompt: str) -> str:
         intent = self.classifier.classify(user_prompt)
@@ -82,6 +83,18 @@ class OrchestratorService:
                 retrieved_documents=retrieval_response,
             )
 
+            if not relevance_response.has_relevant_documents:
+                learning_response = LearningRequiredResponse(
+                    message=(
+                        "I couldn't solve this problem because I don't have a "
+                        "similar example. Please upload the correct Python solution so I can learn it."
+                    )
+                )
+
+                self.memory_service.add_ai_message(learning_response.message)
+
+                return learning_response
+
             relevant_documents = [
                 retrieval_response.documents[result.document_index]
                 for result in relevance_response.results
@@ -117,6 +130,7 @@ class OrchestratorService:
         explainer = LLMExplainer(explainer_llm)
         relevance_service = RelevanceCheckerService(relevance_llm)
         retrieval_service = RetrievalService()
+        learning_service = LearningService()
         extraction_llm = LLMService("qwen2.5:3b")
         extraction_service = LLMCodeExtractor(extraction_llm)
         
@@ -128,6 +142,7 @@ class OrchestratorService:
             code_generator=code_generator,
             relevence_service=relevance_service,
             retrieval_service=retrieval_service,
-            extraction_service=extraction_service
+            extraction_service=extraction_service,
+            learning_service=learning_service,
         )
     
