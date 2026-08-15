@@ -49,3 +49,6 @@ tqdm
 #load env
 load_dotenv
 huggingface_hub
+
+#voice analysis
+faster-whisper
