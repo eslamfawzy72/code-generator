@@ -50,7 +50,7 @@ class VoicePipelineService:
                 error=normalization_response.error,
             )
         # -------------------------------
-        # Step 3: Text → normalized text
+        # Step 3:   normalized text → SQL query
         # -------------------------------
         
         sql_response = self.query_generator.generate_query(
