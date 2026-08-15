@@ -1,12 +1,13 @@
 # 🤖 AI Code Assistant
 
-An intelligent AI-powered Code Assistant built with **FastAPI**, **Streamlit**, **LangChain**, and **Qwen 2.5**. The assistant can understand user intent, generate Python code using Retrieval-Augmented Generation (RAG), explain existing code line by line, maintain conversation memory, and execute generated code safely.
+An intelligent AI-powered Code Assistant built with **FastAPI**, **Streamlit**, **LangChain**, and **Qwen 2.5**. The assistant can understand user intent, generate Python code using Retrieval-Augmented Generation (RAG), explain existing code line by line, maintain conversation memory, execute generated code safely, and analyze voice input to generate and execute SQL queries.
 
 ---
 
 ## ✨ Features
 
 ### 💻 Code Generation
+
 - Generates complete Python solutions from natural language prompts.
 - Uses **Retrieval-Augmented Generation (RAG)** to retrieve similar programming examples.
 - Filters retrieved examples using an AI relevance checker.
@@ -14,6 +15,7 @@ An intelligent AI-powered Code Assistant built with **FastAPI**, **Streamlit**, 
 - Automatically executes generated code and returns execution results.
 
 ### 📖 Code Explanation
+
 - Explains existing Python code.
 - Provides:
   - High-level summary
@@ -22,46 +24,76 @@ An intelligent AI-powered Code Assistant built with **FastAPI**, **Streamlit**, 
 - Automatically extracts code from the user's prompt.
 - Remembers previously explained code so users can ask follow-up questions without resending the code.
 
+### 🎙️ Voice SQL Analysis
+
+- Accepts **voice/audio input** from the user.
+- Supports both **English and Arabic** voice input.
+- Uses **Faster-Whisper** to convert speech into text.
+- Sends the transcribed text directly to **Qwen 2.5** for SQL query generation.
+- The LLM understands the user's intent and generates the corresponding SQL query.
+- Executes the generated SQL query against the application database.
+- Returns the database results to the user.
+- Supports:
+  - Browser voice recording
+  - Audio file upload
+  - Audio preview
+  - Audio reset/clear
+  - Arabic RTL display
+  - Transcription display
+  - Generated SQL display
+  - Database results displayed as a table
+
 ### 🧠 Conversation Memory
+
 - Stores previous user requests and assistant responses.
 - Supports contextual follow-up questions for both:
   - Code Generation
   - Code Explanation
 
 ### 💬 Streamlit Frontend
+
 - Interactive chat interface
+- Voice SQL interface
 - Response streaming
 - Syntax-highlighted code blocks
 - Execute generated code
+- Audio recording and upload
+- Audio preview
 - Conversation history sidebar
+- Arabic and English support
+- RTL support for Arabic
 - Clean ChatGPT-like interface
 
 ---
 
 # 🏗 Architecture
 
-```
-                User
-                  │
-                  ▼
-          Streamlit Frontend
-                  │
-                  ▼
-        FastAPI Orchestrator
-                  │
-      ┌───────────┴────────────┐
-      │                        │
-      ▼                        ▼
- Intent Classifier      Memory Service
-      │                        │
-      └───────────┬────────────┘
-                  │
-      ┌───────────┴────────────┐
-      │                        │
-      ▼                        ▼
- Code Generator          Code Explainer
-      │                        │
-      ▼                        ▼
+## Overall Architecture
+
+```text
+                         User
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+             ▼                         ▼
+     Streamlit Frontend          Voice SQL Page
+             │                         │
+             ▼                         ▼
+     FastAPI Orchestrator       Voice Pipeline API
+             │                         │
+      ┌──────┴──────┐                  ▼
+      │             │           Faster-Whisper
+      ▼             ▼                  │
+Intent Classifier  Memory              ▼
+      │             │           Transcribed Text
+      └──────┬──────┘                  │
+             │                         ▼
+      ┌──────┴──────────────┐   Qwen 2.5
+      │                     │       │
+      ▼                     ▼       ▼
+Code Generator       Code Explainer
+      │                     │
+      ▼                     ▼
  Retrieval + RAG      Code Extraction
       │
       ▼
@@ -72,17 +104,47 @@ An intelligent AI-powered Code Assistant built with **FastAPI**, **Streamlit**, 
       │
       ▼
  Code Execution
-```
 
+
+Voice SQL Flow:
+
+User Voice
+    │
+    ▼
+Streamlit Voice Interface
+    │
+    ▼
+POST /api/v1/voice_pipeline
+    │
+    ▼
+Faster-Whisper
+    │
+    ▼
+Transcribed Text
+    │
+    ▼
+Qwen 2.5
+    │
+    ▼
+Generated SQL
+    │
+    ▼
+SQLite Database
+    │
+    ▼
+Query Results
+    │
+    ▼
+Streamlit
 ---
-
 # 📂 Project Structure
 
 ```text
 Backend/
 │
 ├── routers/
-│   └── orchestrator_router.py
+│   ├── orchestrator_router.py
+│   └── voice_pipeline_router.py
 │
 ├── services/
 │   ├── orchestrator_service.py
@@ -95,6 +157,8 @@ Backend/
 │   ├── prompt_builder.py
 │   ├── memory_service.py
 │   ├── execution_service.py
+│   ├── voice_analysis_service.py
+│   ├── query_generator_service.py
 │   └── llm_service.py
 │
 ├── schemas/
@@ -120,10 +184,14 @@ Frontend/
 - Qwen 2.5
 - Pydantic
 - Python
+-  Faster-Whisper
+- SQLite
 
 ### Frontend
 
 - Streamlit
+
+### AI Components
 
 ### AI Components
 
@@ -133,6 +201,10 @@ Frontend/
 - Code Extraction
 - Code Explanation
 - Conversation Memory
+- Speech-to-Text
+- Voice Analysis
+- Natural Language to SQL
+- SQL Query Generation
 
 ---
 
@@ -326,6 +398,45 @@ Why do we return instead of print?
 
 The assistant remembers the previously explained code without requiring the user to resend it.
 
+# 🎙️ Voice Analysis API
+
+## POST `/api/v1/voice_pipeline`
+
+The endpoint accepts an audio file containing a natural-language database query using `multipart/form-data`.
+
+### Request Body
+
+Content-Type: multipart/form-data
+
+
+`audio=<audio-file>`
+
+### Example
+
+```bash
+curl -X POST "http://127.0.0.1:8004/api/v1/voice_pipeline" \
+  -F "audio=@voice_query.wav"
+```
+
+### Example Response
+
+```json
+{
+  "transcription": "Show me the total number of products in each category.",
+  "normalized_text": "Show me the total number of products in each category.",
+  "sql": "SELECT category, COUNT(*) FROM products GROUP BY category;",
+  "results": [
+    {
+      "category": "Electronics",
+      "count": 10
+    },
+    {
+      "category": "Books",
+      "count": 7
+    }
+  ]
+}
+```
 ---
 
 # 🔄 AI Pipeline
@@ -384,7 +495,48 @@ Line-by-Line Explanation
 ```
 
 ---
+# 🎙️ Voice Analysis Pipeline
 
+The Voice Analysis feature converts a user's spoken database request into a SQL query and executes it against the database.
+
+```text
+User Voice
+    │
+    ▼
+Audio Recording / Upload
+    │
+    ▼
+Voice Analysis API
+    │
+    ▼
+Faster-Whisper
+    │
+    ▼
+Speech-to-Text
+    │
+    ▼
+Transcribed Text
+    │
+    ▼
+Text Normalization
+    │
+    ▼
+Qwen 2.5
+    │
+    ▼
+SQL Query Generation
+    │
+    ▼
+SQLite Database
+    │
+    ▼
+SQL Execution
+    │
+    ▼
+Query Results
+    │
+    ▼
+Frontend
 
 
 ---
